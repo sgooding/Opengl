@@ -4,7 +4,7 @@ COMPILERFLAGS = -Wall
 CXX = g++
 CXXFLAGS = $(COMPILERFLAGS) $(INCLUDE)
 LIBS = -lglui -lopengl32 -lglu32 -lglut32 
-TARGET=hello_world
+TARGET=example01
 
 
 $(TARGET): $(TARGET).o
