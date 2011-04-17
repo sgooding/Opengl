@@ -15,7 +15,21 @@ int gWidth(300), gHeight(300);
 
 const char* gTexFilename("Evie.bmp");
 
-unsigned int gTexture[1]; // storage for one texture
+unsigned int gTexture[3]; // storage for one texture
+
+int gEnableLighting(1);
+
+// Lighting Variables
+
+GLfloat gLightAmbient [] = { 0.5f, 0.5f, 0.5f, 1.0f };
+GLfloat gLightDiffuse [] = { 1.0f, 1.0f, 1.0f, 1.0f };
+GLfloat gLightPosition[] = { 0.0f, 0.0f, 2.0f, 1.0f };
+
+int gFilterValue(0);
+
+float gZTranslation(50.0);
+
+int gEnableBlending(0);
 
 ////////////////////////////////////////////////////////
 // Prototypes
@@ -29,6 +43,10 @@ void DrawGL();
 void LoadGLTextures(); 
 
 void DrawTextureCube();
+
+void EnableLighting(int);
+
+void EnableBlending(int);
 
 ////////////////////////////////////////////////////////
 //
@@ -53,9 +71,19 @@ int main(int argc, char* argv[])
     // Initialize GLUI
     glui = GLUI_Master.create_glui("Toolbar",0,350,0);
     glui->add_statictext("Example 02 - Shading tests");
-    //glui->add_checkbox("Click Me",&state);
-    //glui->add_checkbox("FullScreen",&enable_full,0,&FullScreen);
+    glui->add_checkbox("EnableLighting",&gEnableLighting,0,&EnableLighting);
+    glui->add_checkbox("EnableBlending",&gEnableBlending,0,&EnableBlending);
     //glui->add_edittext("",GLUI_EDITTEXT_TEXT,text);
+    
+    GLUI_RadioGroup* filter_group = glui->add_radiogroup(&gFilterValue,3);
+    glui->add_radiobutton_to_group(filter_group, "Filter 1");
+    glui->add_radiobutton_to_group(filter_group, "Filter 2");
+    glui->add_radiobutton_to_group(filter_group, "Filter 3");
+
+
+    // Add Z Position
+    glui->add_translation("Z",GLUI_TRANSLATION_Z,&gZTranslation);
+
     
     glui->set_main_gfx_window(gMainWindow);
     GLUI_Master.set_glutIdleFunc(&DrawGL);
@@ -66,20 +94,27 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-
-
 void InitGL()
 {
     // Load Texture
     LoadGLTextures();
+
     glEnable(GL_TEXTURE_2D); // Enable texture mapping
+    glShadeModel(GL_SMOOTH); // Enables Smooth Color Shading
 
     // This Will Clear The Background Color To Black
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);		
+    glClearColor(0.0f, 0.0f, 0.0f, 0.5f);		
     glClearDepth(1.0);       // Enables Clearing Of The Depth Buffer
-    glDepthFunc(GL_LESS);    // The Type Of Depth Test To Do
+    //glDepthFunc(GL_LESS);    // The Type Of Depth Test To Do
     glEnable(GL_DEPTH_TEST); // Enables Depth Testing
-    glShadeModel(GL_SMOOTH); // Enables Smooth Color Shading
+    glDepthFunc(GL_LEQUAL);    // The Type Of Depth Test To Do
+    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+
+    // Setup Ambient Lighting
+    glLightfv(GL_LIGHT1, GL_AMBIENT, gLightAmbient );
+    glLightfv(GL_LIGHT1, GL_DIFFUSE, gLightDiffuse );
+    glLightfv(GL_LIGHT1, GL_POSITION,gLightPosition); 
+    glEnable(GL_LIGHT1); // <- OK, don't forget to enable this
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();        // Reset The Projection Matrix
@@ -89,8 +124,9 @@ void InitGL()
     gluPerspective(45.0,aspect,0.1f,100.0f);
 
     glMatrixMode(GL_MODELVIEW);
-}
 
+    glEnable(GL_LIGHTING);
+}
 
 void Resize(int w, int h)
 {
@@ -133,14 +169,15 @@ void DrawGL()
     // Reset The View
     glLoadIdentity();
     
-    glTranslatef(0.0f,0.0f,-6.0f);
+    glTranslatef(0.0f,0.0f,-gZTranslation/10.0);
     static float angle(0);
     glRotatef(angle++, 0.0, 1.0, 0.0 );
     glRotatef(15.0, 1.0, 0.0, 0.0 );
 
     // choose the texture to use.
-    glColor3f(1.0,1.0,1.0);
-    glBindTexture(GL_TEXTURE_2D, gTexture[0]);
+    glColor4f(1.0,1.0,1.0,0.5);
+    glBindTexture(GL_TEXTURE_2D, gTexture[gFilterValue]);
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE);
     DrawTextureCube();
 
     // swap buffers to display, since we're double buffered.
@@ -165,12 +202,14 @@ void DrawTextureCube()
     glBegin(GL_QUADS);		                // begin drawing a cube
 
     // Front Face (note that the texture's corners have to match the quad's corners)
+    glNormal3f( 0.0, 0.0, 1.0);
     glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);	// Bottom Left Of The Texture and Quad
     glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f, -1.0f,  1.0f);	// Bottom Right Of The Texture and Quad
     glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f,  1.0f);	// Top Right Of The Texture and Quad
     glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f,  1.0f);	// Top Left Of The Texture and Quad
 
     // Right Face
+    glNormal3f( 1.0, 0.0, 0.0);
     glTexCoord2f(0.0f, 0.0f); glVertex3f( 1.0f, -1.0f,  1.0f);	// Bottom Left Of The Texture and Quad
     glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f, -1.0f, -1.0f);	// Bottom Right Of The Texture and Quad
     glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f, -1.0f);	// Top Right Of The Texture and Quad
@@ -178,6 +217,7 @@ void DrawTextureCube()
 
 
     // Back Face
+    glNormal3f( 0.0, 0.0, -1.0);
     glTexCoord2f(0.0f, 0.0f); glVertex3f( 1.0f, -1.0f, -1.0f);	// Bottom Left Of The Texture and Quad
     glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);	// Bottom Right Of The Texture and Quad
     glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f,  1.0f, -1.0f);	// Top Right Of The Texture and Quad
@@ -185,25 +225,27 @@ void DrawTextureCube()
 
 
     // Left Face
+    glNormal3f(-1.0, 0.0, 0.0);
     glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);	// Bottom Left Of The Texture and Quad
     glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);	// Bottom Right Of The Texture and Quad
     glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f,  1.0f,  1.0f);	// Top Right Of The Texture and Quad
     glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f, -1.0f);	// Top Left Of The Texture and Quad
 
     // Top Face
+    glNormal3f(0.0, 1.0, 0.0);
     glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, 1.0f, -1.0f);	// Bottom Left Of The Texture and Quad
     glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f, 1.0f, -1.0f);	// Bottom Right Of The Texture and Quad
     glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f, 1.0f,  1.0f);	// Top Right Of The Texture and Quad
     glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f, 1.0f,  1.0f);	// Top Left Of The Texture and Quad
 
     // Bottom Face
+    glNormal3f(0.0, -1.0, 0.0);
     glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);	// Bottom Left Of The Texture and Quad
     glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f,  1.0f);	// Bottom Right Of The Texture and Quad
     glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f, -1.0f,  1.0f);	// Top Right Of The Texture and Quad
     glTexCoord2f(0.0f, 1.0f); glVertex3f( 1.0f, -1.0f, -1.0f);	// Top Left Of The Texture and Quad
 
     glEnd();
-
 }
 
 // Load Bitmaps And Convert To Textures
@@ -225,14 +267,61 @@ void LoadGLTextures()
     }        
 
     // Create Texture	
-    glGenTextures(1, &gTexture[0]);
-    glBindTexture(GL_TEXTURE_2D, gTexture[0]);   // 2d texture (x and y size)
+    glGenTextures(3, &gTexture[0]);
 
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR); // scale linearly when image bigger than texture
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR); // scale linearly when image smalled than texture
+    {
+        glBindTexture(GL_TEXTURE_2D, gTexture[0]);   // 2d texture (x and y size)
 
-    // 2d texture, level of detail 0 (normal), 3 components (red, green, blue), x size from image, y size from image, 
-    // border 0 (normal), rgb color data, unsigned byte data, and finally the data itself.
-    glTexImage2D(GL_TEXTURE_2D, 0, 3, image1->sizeX, image1->sizeY, 0, GL_RGB, GL_UNSIGNED_BYTE, image1->data);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR); // scale linearly when image bigger than texture
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR); // scale linearly when image smalled than texture
+
+        // 2d texture, level of detail 0 (normal), 3 components (red, green, blue), x size from image, y size from image, 
+        // border 0 (normal), rgb color data, unsigned byte data, and finally the data itself.
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, image1->sizeX, image1->sizeY, 0, GL_RGB, GL_UNSIGNED_BYTE, image1->data);
+    }
+    {
+        glBindTexture(GL_TEXTURE_2D, gTexture[1]);   // 2d texture (x and y size)
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST); // scale linearly when image bigger than texture
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST); // scale linearly when image smalled than texture
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, image1->sizeX, image1->sizeY, 0, GL_RGB, GL_UNSIGNED_BYTE, image1->data);
+    }
+    {
+        glBindTexture(GL_TEXTURE_2D, gTexture[2]);   // 2d texture (x and y size)
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR); // scale linearly when image bigger than texture
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_NEAREST); // scale linearly when image smalled than texture
+        gluBuild2DMipmaps(GL_TEXTURE_2D, 3, image1->sizeX, image1->sizeY, GL_RGB, GL_UNSIGNED_BYTE, image1->data);
+    }
+
+    if( image1 && image1->data)
+    {
+        free(image1->data);
+    }
+}
+
+
+void EnableLighting(int)
+{
+    if( 1 == gEnableLighting )
+    {
+        glEnable(GL_LIGHTING);
+    } 
+    else
+    {
+        glDisable(GL_LIGHTING);
+    }
+}
+
+void EnableBlending(int)
+{
+    if( 1 == gEnableBlending )
+    {
+        glEnable(GL_BLEND);
+        glDisable(GL_DEPTH_TEST);
+    }
+    else
+    {
+        glDisable(GL_BLEND);
+        glEnable(GL_DEPTH_TEST);
+    }
 }
 
